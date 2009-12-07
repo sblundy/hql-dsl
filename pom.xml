@@ -9,6 +9,8 @@
   <version>0.0.1-SNAPSHOT</version>
   <name>HQL DSL</name>
 
+  <inceptionYear>2009</inceptionYear>
+
   <repositories>
     <repository>
       <id>scala-tools.org</id>
@@ -44,6 +46,15 @@
     </plugins>
   </build>
 
+  <reporting>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>cobertura-maven-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </reporting>
+
   <dependencies>
     <dependency>
       <groupId>org.scala-lang</groupId>
@@ -51,9 +62,15 @@
       <version>2.7.6</version>
     </dependency>
     <dependency>
-      <groupId>org.scalatest</groupId>
+      <groupId>org.hibernate</groupId>
+      <artifactId>hibernate-core</artifactId>
+      <version>3.3.1.GA</version>
+    </dependency>
+    <dependency>
+      <groupId>org.scala-tools.testing</groupId>
       <artifactId>scalatest</artifactId>
-      <version>1.0</version>
+      <!-- using 0.9.5 till buildr 1.4.0 comes out -->
+      <version>0.9.5</version>
       <scope>test</scope>
     </dependency>
     <dependency>

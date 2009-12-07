@@ -1,7 +1,7 @@
 package org.hqldsl
 
 class FromClause(val select:SelectClause, val tables:Seq[Table]) extends Clause {
-  def WHERE(t:Criterion[_, _]):WhereClause = new WhereClause(this, t)
+  def WHERE(c:Criterion):WhereClause = new WhereClause(this, FirstNode(c))
   override def queryString():String = select.queryString + " FROM " + tables.map(
     _ match {
       case Table(name, null) => name
