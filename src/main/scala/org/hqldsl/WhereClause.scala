@@ -54,7 +54,7 @@ case class Property(obj:String, name:String, alias:String)
 
 object Var {
   private val r = new java.util.Random()
-  def apply[T](value:T):Variable[T] = Variable[T]("var" + r.nextInt, value)
+  def apply[T](value:T):Variable[T] = Variable[T]("var" + r.nextInt(Integer.MAX_VALUE), value)
 }
 
 object Prop {
