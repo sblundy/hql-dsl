@@ -12,7 +12,7 @@ define 'HQL-DSL' do
   project.group = pom.properties['project.groupId']
   project.version = pom.properties['project.version']
 
-  compile.with pom.dependencies([nil,'compile'])
-  test.with pom.dependencies([nil,'test'])
+  compile.using(:target=>'1.5').with pom.dependencies([nil, 'compile', 'provided'])
+  test.with pom.dependencies([nil, 'test'])
   package :jar, :id => pom.properties['project.artifactId']
 end
