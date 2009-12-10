@@ -10,5 +10,6 @@
     <property name="connection.url">jdbc:derby:memory:unit-testing;create=true</property>
     <property name="connection.driver_class">org.apache.derby.jdbc.EmbeddedDriver</property>
     <mapping class="org.hqldsl.testmodel.Simple"/>
+    <mapping class="org.hqldsl.testmodel.Container"/>
   </session-factory>
 </hibernate-configuration>
