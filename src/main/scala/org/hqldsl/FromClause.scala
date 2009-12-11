@@ -1,6 +1,6 @@
 package org.hqldsl
 
-class FromClause(val select:Option[SelectClause], val tables:Seq[Table]) extends Clause with NotNull {
+class FromClause(val select:Option[SelectClause], val tables:Seq[Table]) extends ExecutableClause with NotNull {
   def WHERE(c:Criterion):WhereClause = new WhereClause(this, FirstNode(c))
   override def queryString():String = {
     def printTable(t:Table):String = {
@@ -17,6 +17,11 @@ class FromClause(val select:Option[SelectClause], val tables:Seq[Table]) extends
 
     {select match {case None => ""; case Some(s) => s.queryString + " "}} + "FROM " + tables.map(printTable(_)).mkString(", ")
   }
+  protected[hqldsl] def variables:Seq[Variable[_]] = Nil
+}
+
+trait FromImplicits {
+  implicit def string2Table(name:String):RootTable with Aliasable = new RootTable(name, None) with AliasableRoot
 }
 
 sealed trait Table extends NotNull {

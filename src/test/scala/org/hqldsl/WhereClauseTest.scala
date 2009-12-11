@@ -27,6 +27,23 @@ class WhereClauseTest extends FunSuite with HqlQuerying with SessionSource with 
     victim.queryString should equal ("SELECT test FROM test WHERE 'a' = 'a'")
   }
 
+  test("Nested") {
+    val victim = SELECT("test") FROM ("test") WHERE ("a" EQ "a") AND (("b" EQ "b") OR ("c" EQ "c"))
+    victim.queryString should equal ("SELECT test FROM test WHERE 'a' = 'a' AND ('b' = 'b' OR 'c' = 'c')")
+  }
+
+  test("Nested 2") {
+    val victim = SELECT("test") FROM ("test") WHERE (("b" EQ "b") AND ("c" EQ "c")) OR ("a" EQ "a")
+    victim.queryString should equal ("SELECT test FROM test WHERE ('b' = 'b' AND 'c' = 'c') OR 'a' = 'a'")
+  }
+
+  test("Nested Deep") {
+    val victim = SELECT("test") FROM ("test") WHERE
+            (("b" EQ "b") AND ("c" EQ "c")) OR ((("a" EQ "a") OR ("d" NE "f")) AND ("e" EQ "e"))
+    victim.queryString should equal (
+      "SELECT test FROM test WHERE ('b' = 'b' AND 'c' = 'c') OR (('a' = 'a' OR 'd' <> 'f') AND 'e' = 'e')")
+  }
+
   test("Variable") {
     val victim = SELECT("test") FROM ("test") WHERE (1 EQ Var(1))
     victim.queryString.substring(0, 36) should equal ("SELECT test FROM test WHERE 1 = :var")

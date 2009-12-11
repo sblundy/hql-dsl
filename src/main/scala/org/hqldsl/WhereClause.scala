@@ -1,13 +1,21 @@
 package org.hqldsl
 
-class WhereClause(from:FromClause, last:TreeNode) extends Clause {
+class WhereClause(from:FromClause, last:TreeNode) extends ExecutableClause {
   def AND(c:Criterion):WhereClause = new WhereClause(from, LinkedNode(last, Junction.and, c))
   def OR(c:Criterion):WhereClause = new WhereClause(from, LinkedNode(last, Junction.or, c))
   override def queryString():String = {
-    def walk(node:TreeNode):String = node match {
-      case FirstNode(Criterion(left, op, right)) => mkString(left) + " " + mkString(op) + " " + mkString(right)
-      case LinkedNode(previous, j, Criterion(left, op, right)) => walk(previous) + " " +
-        mkString(j) + " " + mkString(left) + " " + mkString(op) + " " + mkString(right)
+    def walk(node:TreeNode):String = {
+      def printCriterion(c:Criterion):String = {
+        c match {
+          case BinaryCriterion(left, op, right) => mkString(left) + " " + mkString(op) + " " + mkString(right)
+          case NodeCriterion(node) => "(" + walk(node) + ")"
+        }
+      }
+
+      node match {
+        case FirstNode(c) => printCriterion(c)
+        case LinkedNode(previous, j, c) => walk(previous) + " " + mkString(j) + " " + printCriterion(c)
+      }
     }
     from.queryString + " WHERE " + walk(last)
   }
@@ -26,11 +34,11 @@ class WhereClause(from:FromClause, last:TreeNode) extends Clause {
     case a:AnyRef => throw new IllegalArgumentException("type not supported:" + a.getClass.getName)
   }
 
-  private[hqldsl] def variables:Seq[Variable[_]] = {
+  protected[hqldsl] def variables:Seq[Variable[_]] = {
     criteria.flatMap(_ match {
-      case Criterion(left:Variable[_], _, right:Variable[_]) => List(left, right)
-      case Criterion(_, _, right:Variable[_]) => List(right)
-      case Criterion(left:Variable[_], _, _) => List(left)
+      case BinaryCriterion(left:Variable[_], _, right:Variable[_]) => List(left, right)
+      case BinaryCriterion(_, _, right:Variable[_]) => List(right)
+      case BinaryCriterion(left:Variable[_], _, _) => List(left)
       case _ => Nil
     })
   }
@@ -44,9 +52,14 @@ class WhereClause(from:FromClause, last:TreeNode) extends Clause {
   }
 }
 
+trait WhereImplicits {
+  implicit def any2Left[L](x:L):Left[L] = new Left(x)
+  implicit def criterionToTree(node:TreeNode):Criterion = NodeCriterion(node)
+}
+
 class Left[L](left:L) {
-  def EQ[R](right:R):Criterion = new Criterion(left, Op.eq, right)
-  def NE[R](right:R):Criterion = new Criterion(left, Op.ne, right)
+  def EQ[R](right:R):Criterion = new BinaryCriterion(left, Op.eq, right)
+  def NE[R](right:R):Criterion = new BinaryCriterion(left, Op.ne, right)
 }
 
 case class Variable[T](name:String, value:T)
@@ -62,7 +75,13 @@ object Prop {
   def apply(obj:String, name:String):Property = Property(obj, name, null)
 }
 
-case class Criterion(left:Any, op:Op.Value, right:Any)
+sealed trait Criterion extends NotNull {
+  def AND(c:Criterion):TreeNode = LinkedNode(FirstNode(this), Junction.and, c)
+  def OR(c:Criterion):TreeNode = LinkedNode(FirstNode(this), Junction.or, c)
+}
+
+case class BinaryCriterion(left:Any, op:Op.Value, right:Any) extends Criterion
+case class NodeCriterion(tree:TreeNode) extends Criterion
 
 abstract sealed class TreeNode extends NotNull
 

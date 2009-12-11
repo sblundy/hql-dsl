@@ -1,23 +1,21 @@
 package org.hqldsl
 
 import org.hibernate.Session
-import collection.jcl.Buffer
+import collection.jcl.{Buffer, Conversions}
 
-trait HqlQuerying {
+trait HqlQuerying extends FromImplicits with WhereImplicits {
   this: SessionSource =>
   def SELECT(projections:String*):SelectClause = new SelectClause(projections:_*)
   def FROM(tables:Table*):FromClause = new FromClause(None, tables)
 
-  implicit def any2Left[L](x:L):Left[L] = new Left(x)
-  implicit def string2Table(name:String):RootTable with Aliasable = new RootTable(name, None) with AliasableRoot
-  implicit def exec[T](query:WhereClause):Buffer[T] = {
-    val q = session.createQuery(query.queryString)
+  implicit def exec[T](executable:ExecutableClause):Buffer[T] = {
+    val query = session.createQuery(executable.queryString)
 
-    query.variables.foreach(_ match {
-      case Variable(name, value) => q.setParameter(name, value)
+    executable.variables.foreach(_ match {
+      case Variable(name, value) => query.setParameter(name, value)
     })
 
-    return scala.collection.jcl.Conversions.convertList(q.list.asInstanceOf[java.util.List[T]])
+    return Conversions.convertList(query.list.asInstanceOf[java.util.List[T]])
   }
 }
 
