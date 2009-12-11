@@ -13,6 +13,11 @@ class FromClauseTest extends FunSuite with HqlQuerying with SessionSource with S
     victim.queryString should equal ("SELECT test FROM test")
   }
 
+  test("No Select") {
+    val victim = FROM("test")
+    victim.queryString should equal ("FROM test")
+  }
+
   test("Simple2") {
     val victim = SELECT("test") FROM ("test", "test2")
     victim.queryString should equal ("SELECT test FROM test, test2")

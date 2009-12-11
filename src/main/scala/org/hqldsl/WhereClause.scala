@@ -64,17 +64,17 @@ object Prop {
 
 case class Criterion(left:Any, op:Op.Value, right:Any)
 
-abstract sealed class TreeNode
+abstract sealed class TreeNode extends NotNull
 
 case class LinkedNode(previous:TreeNode, j:Junction.Value, criterion:Criterion) extends TreeNode
 case class FirstNode(criterion:Criterion) extends TreeNode
 
-object Op extends Enumeration {
+object Op extends Enumeration with NotNull {
   val eq = Value
   val ne = Value
 }
 
-object Junction extends Enumeration {
+object Junction extends Enumeration with NotNull {
   val and = Value
   val or = Value
 }

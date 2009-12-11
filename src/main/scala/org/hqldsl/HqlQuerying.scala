@@ -9,7 +9,7 @@ trait HqlQuerying {
   def FROM(tables:Table*):FromClause = new FromClause(None, tables)
 
   implicit def any2Left[L](x:L):Left[L] = new Left(x)
-  implicit def string2Table(name:String):RootTable with Aliasable = new RootTable(name, null) with AliasableRoot
+  implicit def string2Table(name:String):RootTable with Aliasable = new RootTable(name, None) with AliasableRoot
   implicit def exec[T](query:WhereClause):Buffer[T] = {
     val q = session.createQuery(query.queryString)
 
