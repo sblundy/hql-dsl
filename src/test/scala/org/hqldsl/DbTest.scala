@@ -69,7 +69,7 @@ class DbTest extends FunSuite with ShouldMatchers {
       (sess) => {
         new TestHqlQuerying(sess) {
           val values:Buffer[Simple] =
-            SELECT("s") FROM (classOf[Simple].getName AS "s") WHERE (Prop("s.name") EQ "Name 1")
+            SELECT("s") FROM (classOf[Simple].getName AS "s") WHERE (Prop("s", "name") EQ Literal("Name 1"))
 
           values.size should be(1)
           values.first.name should equal("Name 1")
@@ -83,7 +83,8 @@ class DbTest extends FunSuite with ShouldMatchers {
       (sess) => {
         new TestHqlQuerying(sess) {
           val values:Buffer[Simple] =
-            SELECT("s") FROM (classOf[Simple].getName AS "s") WHERE (Prop("s.name") NE "Name 1") AND (Prop("s.name") NE "Name 2")
+            SELECT("s") FROM (classOf[Simple].getName AS "s") WHERE
+                    (Prop("s", "name") NE Literal("Name 1")) AND (Prop("s", "name") NE Literal("Name 2"))
 
           values.size should be(0)
         }
@@ -96,7 +97,8 @@ class DbTest extends FunSuite with ShouldMatchers {
       (sess) => {
         new TestHqlQuerying(sess) {
           val values:Buffer[Container] =
-            SELECT("c") FROM (classOf[Container].getName AS "c" JOIN "c.simples" AS "s") WHERE (Prop("s.name") EQ "Name 1")
+            SELECT("c") FROM (classOf[Container].getName AS "c" JOIN "c.simples" AS "s") WHERE
+                    (Prop("s", "name") EQ Literal("Name 1"))
 
           values.size should be(2)
         }
@@ -109,7 +111,7 @@ class DbTest extends FunSuite with ShouldMatchers {
       (sess) => {
         new TestHqlQuerying(sess) {
           val values:Buffer[Container] =
-            SELECT("c") FROM (classOf[Container].getName AS "c" JOIN "c.simples") WHERE (Prop("name") EQ "Name 1")
+            SELECT("c") FROM (classOf[Container].getName AS "c" JOIN "c.simples") WHERE ("name" EQ Literal("Name 1"))
 
           values.size should be(2)
         }

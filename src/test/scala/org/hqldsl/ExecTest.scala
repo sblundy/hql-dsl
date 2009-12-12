@@ -25,7 +25,7 @@ class ExecTest extends FunSuite with ShouldMatchers {
           EasyMock.expect(query.list.asInstanceOf[java.util.List[Integer]]).andReturn(Arrays.asList(Integer.MAX_VALUE))
 
           ctrl.replay
-          val results:Buffer[AnyRef] = SELECT("test") FROM "test" WHERE (Prop("name") EQ "test")
+          val results:Buffer[AnyRef] = SELECT("test") FROM "test" WHERE ("name" EQ Literal("test"))
           ctrl.verify
 
           results should have size (1)

@@ -21,17 +21,17 @@ class WhereClause(from:FromClause, last:TreeNode) extends ExecutableClause {
   }
 
   private def mkString(v:Any):String = v match {
-    case s:String => "'" + s + "'"
+    case Literal(s:String) => "'" + s + "'"
     case Variable(name, _) => ":" + name
-    case Property(null, name, null) => name
-    case Property(obj, name, null) => obj + "." + name
+    case Property(None, name, _) => name
+    case Property(Some(obj), name, _) => obj + "." + name
     case Junction.and => "AND"
     case Junction.or => "OR"
     case Op.eq => "="
     case Op.ne => "<>"
-    case primative:AnyVal => primative.toString
-    case d:java.util.Date => throw new IllegalArgumentException("dates not supported")
-    case a:AnyRef => throw new IllegalArgumentException("type not supported:" + a.getClass.getName)
+    case Literal(primative:AnyVal) => primative.toString
+    case Literal(d:java.util.Date) => throw new IllegalArgumentException("dates not supported")
+    case Literal(a:AnyRef) => throw new IllegalArgumentException("type not supported:" + a.getClass.getName)
   }
 
   protected[hqldsl] def variables:Seq[Variable[_]] = {
@@ -53,17 +53,23 @@ class WhereClause(from:FromClause, last:TreeNode) extends ExecutableClause {
 }
 
 trait WhereImplicits {
-  implicit def any2Left[L](x:L):Left[L] = new Left(x)
+  implicit def atom2Left(x:CriterionAtom):Left = new Left(x)
+  implicit def string2Left(x:String):Left = new Left(Prop(x))
   implicit def criterionToTree(node:TreeNode):Criterion = NodeCriterion(node)
 }
 
-class Left[L](left:L) {
-  def EQ[R](right:R):Criterion = new BinaryCriterion(left, Op.eq, right)
-  def NE[R](right:R):Criterion = new BinaryCriterion(left, Op.ne, right)
+class Left(left:CriterionAtom) {
+  def EQ(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.eq, right)
+  def EQ(right:String):Criterion = new BinaryCriterion(left, Op.eq, Prop(right))
+  def NE(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.ne, right)
+  def NE(right:String):Criterion = new BinaryCriterion(left, Op.ne, Prop(right))
 }
 
-case class Variable[T](name:String, value:T)
-case class Property(obj:String, name:String, alias:String)
+sealed trait CriterionAtom
+
+case class Variable[T](name:String, value:T) extends CriterionAtom
+case class Literal[T](value:T) extends CriterionAtom
+case class Property(obj:Option[String], name:String, alias:Option[String]) extends CriterionAtom
 
 object Var {
   private val r = new java.util.Random()
@@ -71,8 +77,8 @@ object Var {
 }
 
 object Prop {
-  def apply(name:String):Property = Property(null, name, null)
-  def apply(obj:String, name:String):Property = Property(obj, name, null)
+  def apply(name:String):Property = Property(None, name, None)
+  def apply(obj:String, name:String):Property = Property(Some(obj), name, None)
 }
 
 sealed trait Criterion extends NotNull {
@@ -80,7 +86,7 @@ sealed trait Criterion extends NotNull {
   def OR(c:Criterion):TreeNode = LinkedNode(FirstNode(this), Junction.or, c)
 }
 
-case class BinaryCriterion(left:Any, op:Op.Value, right:Any) extends Criterion
+case class BinaryCriterion(left:CriterionAtom, op:Op.Value, right:CriterionAtom) extends Criterion
 case class NodeCriterion(tree:TreeNode) extends Criterion
 
 abstract sealed class TreeNode extends NotNull
