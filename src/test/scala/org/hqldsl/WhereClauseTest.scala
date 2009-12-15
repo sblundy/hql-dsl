@@ -107,4 +107,14 @@ class WhereClauseTest extends FunSuite with HqlQuerying with SessionSource with 
     val victim = SELECT("test") FROM ("test" AS "t") WHERE (Prop("t", "name") EQ Literal("test"))
     victim.queryString should equal ("SELECT test FROM test AS t WHERE t.name = 'test'")
   }
+
+  test("Is Null") {
+    val victim = SELECT("test") FROM ("test" AS "t") WHERE (Prop("t", "name") IS_NULL)
+    victim.queryString should equal ("SELECT test FROM test AS t WHERE t.name IS NULL")
+  }
+
+  test("Is Not Null") {
+    val victim = SELECT("test") FROM ("test" AS "t") WHERE (Prop("t", "name") IS_NOT_NULL)
+    victim.queryString should equal ("SELECT test FROM test AS t WHERE t.name IS NOT NULL")
+  }
 }

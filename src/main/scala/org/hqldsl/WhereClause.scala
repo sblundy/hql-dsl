@@ -34,6 +34,7 @@ class WhereClause(from:FromClause, last:TreeNode) extends ExecutableClause {
       def printCriterion(c:Criterion):String = {
         c match {
           case BinaryCriterion(left, op, right) => mkString(left) + " " + mkString(op) + " " + mkString(right)
+          case UnitaryCriterion(left, op) => mkString(left) + " " + mkString(op)
           case NodeCriterion(node) => "(" + walk(node) + ")"
         }
       }
@@ -69,6 +70,11 @@ class WhereClause(from:FromClause, last:TreeNode) extends ExecutableClause {
     case Op.le => "<="
     case Op.lt => "<"
     case Op.like => "LIKE"
+  }
+
+  private def mkString(v:UnitaryOp):String = v match {
+    case UnitaryOp.isNotNull => "IS NOT NULL"
+    case UnitaryOp.isNull => "IS NULL"
   }
 
   protected[hqldsl] def variables:Seq[Variable[_]] = {
@@ -110,6 +116,8 @@ class Left(left:CriterionAtom) {
   def LT(right:String):Criterion = new BinaryCriterion(left, Op.lt, Prop(right))
   def LIKE(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.like, right)
   def LIKE(right:String):Criterion = new BinaryCriterion(left, Op.like, Prop(right))
+  def IS_NULL:Criterion = new UnitaryCriterion(left, UnitaryOp.isNull)
+  def IS_NOT_NULL:Criterion = new UnitaryCriterion(left, UnitaryOp.isNotNull)
 }
 
 sealed trait CriterionAtom
@@ -134,6 +142,7 @@ sealed trait Criterion extends NotNull {
 }
 
 case class BinaryCriterion(left:CriterionAtom, op:Op, right:CriterionAtom) extends Criterion
+case class UnitaryCriterion(atom:CriterionAtom, op:UnitaryOp) extends Criterion
 case class NodeCriterion(tree:TreeNode) extends Criterion
 
 abstract sealed class TreeNode extends NotNull
@@ -151,6 +160,13 @@ object Op {
   case object le extends Op
   case object lt extends Op
   case object like extends Op
+}
+
+sealed trait UnitaryOp extends NotNull
+
+object UnitaryOp {
+  case object isNull extends UnitaryOp
+  case object isNotNull extends UnitaryOp
 }
 
 sealed trait Junction extends NotNull
