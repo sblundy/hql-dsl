@@ -1,3 +1,29 @@
+/*
+ * Copyright (c) 2009, Steven Blundy
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the <organization> nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT HOLDER> BE LIABLE FOR ANY
+ * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+ * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 package org.hqldsl
 
 class WhereClause(from:FromClause, last:TreeNode) extends ExecutableClause {
@@ -20,18 +46,29 @@ class WhereClause(from:FromClause, last:TreeNode) extends ExecutableClause {
     from.queryString + " WHERE " + walk(last)
   }
 
-  private def mkString(v:Any):String = v match {
-    case Literal(s:String) => "'" + s + "'"
+  private def mkString(v:CriterionAtom):String = v match {
     case Variable(name, _) => ":" + name
-    case Property(None, name, _) => name
-    case Property(Some(obj), name, _) => obj + "." + name
+    case Property(None, name) => name
+    case Property(Some(obj), name) => obj + "." + name
+    case Literal(s:String) => "'" + s + "'"
+    case Literal(primative:AnyVal) => primative.toString
+    case Literal(d:java.util.Date) => throw new IllegalArgumentException("dates not supported for literals")
+    case Literal(a:AnyRef) => throw new IllegalArgumentException("type not supported for literals:" + a.getClass.getName)
+  }
+
+  private def mkString(v:Junction):String = v match {
     case Junction.and => "AND"
     case Junction.or => "OR"
+  }
+
+  private def mkString(v:Op):String = v match {
     case Op.eq => "="
     case Op.ne => "<>"
-    case Literal(primative:AnyVal) => primative.toString
-    case Literal(d:java.util.Date) => throw new IllegalArgumentException("dates not supported")
-    case Literal(a:AnyRef) => throw new IllegalArgumentException("type not supported:" + a.getClass.getName)
+    case Op.gt => ">"
+    case Op.ge => ">="
+    case Op.le => "<="
+    case Op.lt => "<"
+    case Op.like => "LIKE"
   }
 
   protected[hqldsl] def variables:Seq[Variable[_]] = {
@@ -63,13 +100,23 @@ class Left(left:CriterionAtom) {
   def EQ(right:String):Criterion = new BinaryCriterion(left, Op.eq, Prop(right))
   def NE(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.ne, right)
   def NE(right:String):Criterion = new BinaryCriterion(left, Op.ne, Prop(right))
+  def GT(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.gt, right)
+  def GT(right:String):Criterion = new BinaryCriterion(left, Op.gt, Prop(right))
+  def GE(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.ge, right)
+  def GE(right:String):Criterion = new BinaryCriterion(left, Op.ge, Prop(right))
+  def LE(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.le, right)
+  def LE(right:String):Criterion = new BinaryCriterion(left, Op.le, Prop(right))
+  def LT(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.lt, right)
+  def LT(right:String):Criterion = new BinaryCriterion(left, Op.lt, Prop(right))
+  def LIKE(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.like, right)
+  def LIKE(right:String):Criterion = new BinaryCriterion(left, Op.like, Prop(right))
 }
 
 sealed trait CriterionAtom
 
 case class Variable[T](name:String, value:T) extends CriterionAtom
 case class Literal[T](value:T) extends CriterionAtom
-case class Property(obj:Option[String], name:String, alias:Option[String]) extends CriterionAtom
+case class Property(obj:Option[String], name:String) extends CriterionAtom
 
 object Var {
   private val r = new java.util.Random()
@@ -77,8 +124,8 @@ object Var {
 }
 
 object Prop {
-  def apply(name:String):Property = Property(None, name, None)
-  def apply(obj:String, name:String):Property = Property(Some(obj), name, None)
+  def apply(name:String):Property = Property(None, name)
+  def apply(obj:String, name:String):Property = Property(Some(obj), name)
 }
 
 sealed trait Criterion extends NotNull {
@@ -86,20 +133,29 @@ sealed trait Criterion extends NotNull {
   def OR(c:Criterion):TreeNode = LinkedNode(FirstNode(this), Junction.or, c)
 }
 
-case class BinaryCriterion(left:CriterionAtom, op:Op.Value, right:CriterionAtom) extends Criterion
+case class BinaryCriterion(left:CriterionAtom, op:Op, right:CriterionAtom) extends Criterion
 case class NodeCriterion(tree:TreeNode) extends Criterion
 
 abstract sealed class TreeNode extends NotNull
 
-case class LinkedNode(previous:TreeNode, j:Junction.Value, criterion:Criterion) extends TreeNode
+case class LinkedNode(previous:TreeNode, j:Junction, criterion:Criterion) extends TreeNode
 case class FirstNode(criterion:Criterion) extends TreeNode
 
-object Op extends Enumeration with NotNull {
-  val eq = Value
-  val ne = Value
+sealed trait Op extends NotNull
+
+object Op {
+  case object eq extends Op
+  case object ne extends Op
+  case object gt extends Op
+  case object ge extends Op
+  case object le extends Op
+  case object lt extends Op
+  case object like extends Op
 }
 
-object Junction extends Enumeration with NotNull {
-  val and = Value
-  val or = Value
+sealed trait Junction extends NotNull
+
+object Junction {
+  case object and extends Junction
+  case object or extends Junction
 }
