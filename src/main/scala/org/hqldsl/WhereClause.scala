@@ -35,6 +35,8 @@ class WhereClause(from:FromClause, last:TreeNode) extends ExecutableClause {
         c match {
           case BinaryCriterion(left, op, right) => mkString(left) + " " + mkString(op) + " " + mkString(right)
           case UnitaryCriterion(left, op) => mkString(left) + " " + mkString(op)
+          case BetweenCriteron(left, mid, right) =>
+            mkString(left) + " BETWEEN " + mkString(mid) + " AND " +mkString(right)
           case NodeCriterion(node) => "(" + walk(node) + ")"
         }
       }
@@ -54,7 +56,8 @@ class WhereClause(from:FromClause, last:TreeNode) extends ExecutableClause {
     case Literal(s:String) => "'" + s + "'"
     case Literal(primative:AnyVal) => primative.toString
     case Literal(d:java.util.Date) => throw new IllegalArgumentException("dates not supported for literals")
-    case Literal(a:AnyRef) => throw new IllegalArgumentException("type not supported for literals:" + a.getClass.getName)
+    case Literal(a:AnyRef) =>
+      throw new IllegalArgumentException("type not supported for literals:" + a.getClass.getName)
   }
 
   private def mkString(v:Junction):String = v match {
@@ -118,8 +121,12 @@ class Left(left:CriterionAtom) {
   def LIKE(right:String):Criterion = new BinaryCriterion(left, Op.like, Prop(right))
   def IS_NULL:Criterion = new UnitaryCriterion(left, UnitaryOp.isNull)
   def IS_NOT_NULL:Criterion = new UnitaryCriterion(left, UnitaryOp.isNotNull)
+  def BETWEEN(one:CriterionAtom):BetweenTemp = new BetweenTemp(left, one)
 }
 
+class BetweenTemp(left:CriterionAtom, mid:CriterionAtom) {
+  def AND(right:CriterionAtom):Criterion = new BetweenCriteron(left, mid, right)
+}
 sealed trait CriterionAtom
 
 case class Variable[T](name:String, value:T) extends CriterionAtom
@@ -143,6 +150,7 @@ sealed trait Criterion extends NotNull {
 
 case class BinaryCriterion(left:CriterionAtom, op:Op, right:CriterionAtom) extends Criterion
 case class UnitaryCriterion(atom:CriterionAtom, op:UnitaryOp) extends Criterion
+case class BetweenCriteron(left:CriterionAtom, mid:CriterionAtom, right:CriterionAtom) extends Criterion
 case class NodeCriterion(tree:TreeNode) extends Criterion
 
 abstract sealed class TreeNode extends NotNull
