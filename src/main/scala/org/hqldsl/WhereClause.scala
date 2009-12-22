@@ -39,6 +39,7 @@ class WhereClause(from:FromClause, last:TreeNode) extends ExecutableClause {
             mkString(left) + " BETWEEN " + mkString(mid) + " AND " +mkString(right)
           case NodeCriterion(node) => "(" + walk(node) + ")"
           case SubQueryCriterion(left, op, subquery) => mkString(left) + " " + mkString(op) + " " + mkString(subquery)
+          case NotCriterion(c) => "NOT " + printCriterion(c)
         }
       }
 
@@ -109,9 +110,13 @@ trait WhereImplicits {
   implicit def atom2Left(x:CriterionAtom):Left = new Left(x)
   implicit def string2Left(x:String):Left = new Left(Prop(x))
   implicit def criterionToTree(node:TreeNode):Criterion = NodeCriterion(node)
+
+  object NOT {
+    def apply(c:Criterion):Criterion = NotCriterion(c)
+  }
 }
 
-class Left(left:CriterionAtom) {
+class Left(val left:CriterionAtom) {
   def EQ(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.eq, right)
   def EQ(right:String):Criterion = new BinaryCriterion(left, Op.eq, Prop(right))
   def NE(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.ne, right)
@@ -163,6 +168,7 @@ case class UnitaryCriterion(atom:CriterionAtom, op:UnitaryOp) extends Criterion
 case class BetweenCriteron(left:CriterionAtom, mid:CriterionAtom, right:CriterionAtom) extends Criterion
 case class NodeCriterion(tree:TreeNode) extends Criterion
 case class SubQueryCriterion(left:CriterionAtom, op:CollectionOp, subquery:SubQuery) extends Criterion
+case class NotCriterion(c:Criterion) extends Criterion
 
 abstract sealed class TreeNode extends NotNull
 

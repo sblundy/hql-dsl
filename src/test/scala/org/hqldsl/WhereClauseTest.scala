@@ -128,4 +128,19 @@ class WhereClauseTest extends FunSuite with HqlQuerying with SessionSource with 
             ("a" IN (SELECT("st") FROM ("subtest" AS "st") WHERE ("b" EQ Literal(4))))
     victim.queryString should equal ("SELECT test FROM test WHERE a IN (SELECT st FROM subtest AS st WHERE b = 4)")
   }
+
+  test("NOT") {
+    val victim = SELECT("test") FROM ("test") WHERE NOT ("name" EQ Literal("test"))
+    victim.queryString should equal ("SELECT test FROM test WHERE NOT name = 'test'")
+  }
+
+  test("NOT AND") {
+    val victim = SELECT("test") FROM ("test") WHERE ("a" EQ Literal(1)) AND NOT ("name" EQ Literal("test"))
+    victim.queryString should equal ("SELECT test FROM test WHERE a = 1 AND NOT name = 'test'")
+  }
+
+  test("Nested NOT") {
+    val victim = SELECT("test") FROM ("test") WHERE ("a" EQ Literal(1)) AND (NOT ("name" EQ Literal("test")) OR ("c" NE "d"))
+    victim.queryString should equal ("SELECT test FROM test WHERE a = 1 AND (NOT name = 'test' OR c <> d)")
+  }
 }
