@@ -81,6 +81,8 @@ class WhereClause(from:FromClause, last:TreeNode) extends ExecutableClause {
     case Op.le => "<="
     case Op.lt => "<"
     case Op.like => "LIKE"
+    case Op.memberOf => "MEMBER OF"
+    case Op.notMemberOf => "NOT MEMBER OF"
   }
 
   private def mkString(v:UnitaryOp):String = v match {
@@ -131,6 +133,10 @@ class Left(val left:CriterionAtom) {
   def LT(right:String):Criterion = new BinaryCriterion(left, Op.lt, Prop(right))
   def LIKE(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.like, right)
   def LIKE(right:String):Criterion = new BinaryCriterion(left, Op.like, Prop(right))
+  def MEMBER_OF(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.memberOf, right)
+  def MEMBER_OF(right:String):Criterion = new BinaryCriterion(left, Op.memberOf, Prop(right))
+  def NOT_MEMBER_OF(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.notMemberOf, right)
+  def NOT_MEMBER_OF(right:String):Criterion = new BinaryCriterion(left, Op.notMemberOf, Prop(right))
   def IS_NULL:Criterion = new UnitaryCriterion(left, UnitaryOp.isNull)
   def IS_NOT_NULL:Criterion = new UnitaryCriterion(left, UnitaryOp.isNotNull)
   def BETWEEN(one:CriterionAtom):BetweenTemp = new BetweenTemp(left, one)
@@ -185,6 +191,8 @@ object Op {
   case object le extends Op
   case object lt extends Op
   case object like extends Op
+  case object memberOf extends Op
+  case object notMemberOf extends Op
 }
 
 sealed trait UnitaryOp extends NotNull

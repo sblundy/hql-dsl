@@ -73,6 +73,16 @@ class WhereClauseTest extends FunSuite with HqlQuerying with SessionSource with 
     victim.queryString should equal ("SELECT test FROM test WHERE a < 1")
   }
 
+  test("member of") {
+    val victim = SELECT("test") FROM ("test") WHERE ("a" MEMBER_OF "allAs")
+    victim.queryString should equal ("SELECT test FROM test WHERE a MEMBER OF allAs")
+  }
+
+  test("not member of") {
+    val victim = SELECT("test") FROM ("test") WHERE ("a" NOT_MEMBER_OF "allAs")
+    victim.queryString should equal ("SELECT test FROM test WHERE a NOT MEMBER OF allAs")
+  }
+
   test("Nested") {
     val victim = SELECT("test") FROM ("test") WHERE ("a" EQ "b") AND (("b" EQ "c") OR ("c" EQ "d"))
     victim.queryString should equal ("SELECT test FROM test WHERE a = b AND (b = c OR c = d)")
