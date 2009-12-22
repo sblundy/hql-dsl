@@ -38,6 +38,7 @@ class WhereClause(from:FromClause, last:TreeNode) extends ExecutableClause {
           case BetweenCriteron(left, mid, right) =>
             mkString(left) + " BETWEEN " + mkString(mid) + " AND " +mkString(right)
           case NodeCriterion(node) => "(" + walk(node) + ")"
+          case SubQueryCriterion(left, op, subquery) => mkString(left) + " " + mkString(op) + " " + mkString(subquery)
         }
       }
 
@@ -58,6 +59,12 @@ class WhereClause(from:FromClause, last:TreeNode) extends ExecutableClause {
     case Literal(d:java.util.Date) => throw new IllegalArgumentException("dates not supported for literals")
     case Literal(a:AnyRef) =>
       throw new IllegalArgumentException("type not supported for literals:" + a.getClass.getName)
+    case SubQuery(subquery) => "(" + subquery.queryString + ")"
+  }
+
+  private def mkString(v:CollectionOp):String = v match {
+    case CollectionOp.in => "IN"
+    case CollectionOp.notIn => "NOT IN"
   }
 
   private def mkString(v:Junction):String = v match {
@@ -122,6 +129,8 @@ class Left(left:CriterionAtom) {
   def IS_NULL:Criterion = new UnitaryCriterion(left, UnitaryOp.isNull)
   def IS_NOT_NULL:Criterion = new UnitaryCriterion(left, UnitaryOp.isNotNull)
   def BETWEEN(one:CriterionAtom):BetweenTemp = new BetweenTemp(left, one)
+  def IN(right:ExecutableClause):Criterion = new SubQueryCriterion(left, CollectionOp.in, new SubQuery(right))
+  def NOT_IN(right:ExecutableClause):Criterion = new SubQueryCriterion(left, CollectionOp.notIn, new SubQuery(right))
 }
 
 class BetweenTemp(left:CriterionAtom, mid:CriterionAtom) {
@@ -132,6 +141,7 @@ sealed trait CriterionAtom
 case class Variable[T](name:String, value:T) extends CriterionAtom
 case class Literal[T](value:T) extends CriterionAtom
 case class Property(obj:Option[String], name:String) extends CriterionAtom
+case class SubQuery(subquery:ExecutableClause) extends CriterionAtom
 
 object Var {
   private val r = new java.util.Random()
@@ -152,6 +162,7 @@ case class BinaryCriterion(left:CriterionAtom, op:Op, right:CriterionAtom) exten
 case class UnitaryCriterion(atom:CriterionAtom, op:UnitaryOp) extends Criterion
 case class BetweenCriteron(left:CriterionAtom, mid:CriterionAtom, right:CriterionAtom) extends Criterion
 case class NodeCriterion(tree:TreeNode) extends Criterion
+case class SubQueryCriterion(left:CriterionAtom, op:CollectionOp, subquery:SubQuery) extends Criterion
 
 abstract sealed class TreeNode extends NotNull
 
@@ -175,6 +186,13 @@ sealed trait UnitaryOp extends NotNull
 object UnitaryOp {
   case object isNull extends UnitaryOp
   case object isNotNull extends UnitaryOp
+}
+
+sealed trait CollectionOp extends NotNull
+
+object CollectionOp {
+  case object in extends CollectionOp
+  case object notIn extends CollectionOp
 }
 
 sealed trait Junction extends NotNull

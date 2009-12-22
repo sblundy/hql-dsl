@@ -122,4 +122,10 @@ class WhereClauseTest extends FunSuite with HqlQuerying with SessionSource with 
     val victim = SELECT("test") FROM ("test" AS "t") WHERE (Prop("t", "name") BETWEEN Literal(0) AND Literal(10))
     victim.queryString should equal ("SELECT test FROM test AS t WHERE t.name BETWEEN 0 AND 10")
   }
+
+  test("Subquery") {
+    val victim = SELECT("test") FROM ("test") WHERE
+            ("a" IN (SELECT("st") FROM ("subtest" AS "st") WHERE ("b" EQ Literal(4))))
+    victim.queryString should equal ("SELECT test FROM test WHERE a IN (SELECT st FROM subtest AS st WHERE b = 4)")
+  }
 }
