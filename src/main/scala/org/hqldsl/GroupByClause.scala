@@ -26,10 +26,13 @@
  */
 package org.hqldsl
 
-abstract class Clause extends NotNull {
-  def queryString():String
+class GroupByClause(previous:ExecutableClause, columns:Seq[String])
+        extends ExecutableClause with OrderByProvider {
+  def queryString():String = previous.queryString + " GROUP BY " + columns.mkString(", ")
+  protected[hqldsl] def variables:Seq[Variable[_]] = previous.variables
 }
 
-abstract class ExecutableClause extends Clause {
-  protected[hqldsl] def variables:Seq[Variable[_]]
+trait GroupByProvider {
+  self:ExecutableClause =>
+  def GROUP_BY(columns:String*) = new GroupByClause(this, columns)
 }

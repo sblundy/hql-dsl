@@ -26,10 +26,27 @@
  */
 package org.hqldsl
 
-abstract class Clause extends NotNull {
-  def queryString():String
-}
+import org.scalatest.FunSuite
+import org.scalatest.matchers.ShouldMatchers
 
-abstract class ExecutableClause extends Clause {
-  protected[hqldsl] def variables:Seq[Variable[_]]
+class OrderByClauseTest extends HqlQueriesTestBase with FunSuite with ShouldMatchers {
+  test("Default") {
+    val victim = SELECT("test") FROM "test" ORDER_BY "test"
+    victim.queryString should equal ("SELECT test FROM test ORDER BY test")
+  }
+
+  test("Asc") {
+    val victim = SELECT("test") FROM "test" ORDER_BY ("test" ASC)
+    victim.queryString should equal ("SELECT test FROM test ORDER BY test ASC")
+  }
+
+  test("Dsc") {
+    val victim = SELECT("test") FROM "test" ORDER_BY ("test" DSC)
+    victim.queryString should equal ("SELECT test FROM test ORDER BY test DSC")
+  }
+
+  test("Mixed") {
+    val victim = SELECT("test") FROM "test" ORDER_BY ("test" DSC, "name" ASC)
+    victim.queryString should equal ("SELECT test FROM test ORDER BY test DSC, name ASC")
+  }
 }

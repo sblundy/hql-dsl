@@ -27,24 +27,42 @@
 package org.hqldsl
 
 import org.hibernate.Session
-import collection.jcl.{Buffer, Conversions}
+import collection.jcl.Buffer
 
-trait HqlQuerying extends FromImplicits with WhereImplicits {
+/**
+ * Interface to provide HQL queries. Typically a user class will make a query as a part of an
+ * internal method. For example, a method that finds a class by name and birthday might look like
+ * this:
+ *
+ * <code>
+ * def findByNameAndBirthDateRange(name:String, start:Date, end:Date):Seq[Person] = {
+ *   return SELECT "p" FROM "Persons" AS "p" WHERE
+ *     "p.name" EQ Var(name) AND "p.birthday" BETWEEN Var(start) AND Var(end)
+ * }
+ * </code>
+ *
+ * The {@link Var} objects will correctly handle the variables, passing them to the query via
+ * <code>setParameter()</code>.
+ */
+trait HqlQuerying extends FromImplicits with WhereImplicits with OrderByImplicits {
   this: SessionSource =>
-  def SELECT(projections:String*):SelectClause = new SelectClause(projections:_*)
-  def FROM(tables:Table*):FromClause = new FromClause(None, tables)
+  protected def SELECT(projections:String*):SelectClause = new SelectClause(projections:_*)
+  protected def FROM(tables:Table*):FromClause = new FromClause(None, tables)
 
-  implicit def exec[T](executable:ExecutableClause):Buffer[T] = {
+  implicit protected def exec[T](executable:ExecutableClause):Buffer[T] = {
     val query = session.createQuery(executable.queryString)
 
     executable.variables.foreach(_ match {
       case Variable(name, value) => query.setParameter(name, value)
     })
 
-    return Conversions.convertList(query.list.asInstanceOf[java.util.List[T]])
+    return collection.jcl.Conversions.convertList(query.list.asInstanceOf[java.util.List[T]])
   }
 }
 
+/**
+ * Used to connect {@link HqlQuerying} to the user class. 
+ */
 trait SessionSource {
   protected def session():Session
 }

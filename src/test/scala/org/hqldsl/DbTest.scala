@@ -130,6 +130,21 @@ class DbTest extends FunSuite with ShouldMatchers {
     }
   }
 
+  test("Simple Variable") {
+    val name = "Name 1"
+    xaction {
+      (sess) => {
+        new TestHqlQuerying(sess) {
+          val values:Buffer[Simple] =
+            SELECT("s") FROM (classOf[Simple].getName AS "s") WHERE (Prop("s", "name") EQ Var(name))
+
+          values.size should be(1)
+          values.first.name should equal("Name 1")
+        }
+      }
+    }
+  }
+
   test("Simple:empty") {
     xaction {
       (sess) => {
@@ -158,14 +173,31 @@ class DbTest extends FunSuite with ShouldMatchers {
     }
   }
 
-  test("Complex") {
+  test("Group by") {
     xaction {
       (sess) => {
         new TestHqlQuerying(sess) {
           val values:Buffer[Container] =
-            SELECT("c") FROM (classOf[Container].getName AS "c" JOIN "c.simples") WHERE ("name" EQ Literal("Name 1"))
+            SELECT("count(*)") FROM (classOf[Container].getName AS "c" JOIN "c.simples") WHERE
+                    ("name" EQ Literal("Name 1")) GROUP_BY "c.containerName"
+
+          values.size should be(1)
+          values.first should be(2)
+        }
+      }
+    }
+  }
+
+  test("Order by") {
+    xaction {
+      (sess) => {
+        new TestHqlQuerying(sess) {
+          val values:Buffer[Simple] =
+            SELECT("s") FROM (classOf[Simple].getName AS "s") ORDER_BY "s.name"
 
           values.size should be(2)
+          values.first.name should equal("Name 1")
+          values.last.name should equal("Name 2")
         }
       }
     }

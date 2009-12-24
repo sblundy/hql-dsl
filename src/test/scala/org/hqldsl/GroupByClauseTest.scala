@@ -26,10 +26,17 @@
  */
 package org.hqldsl
 
-abstract class Clause extends NotNull {
-  def queryString():String
-}
+import org.scalatest.FunSuite
+import org.scalatest.matchers.ShouldMatchers
 
-abstract class ExecutableClause extends Clause {
-  protected[hqldsl] def variables:Seq[Variable[_]]
+class GroupByClauseTest extends HqlQueriesTestBase with FunSuite with ShouldMatchers {
+  test("Default") {
+    val victim = SELECT("count(*)") FROM "test" GROUP_BY "test"
+    victim.queryString should equal ("SELECT count(*) FROM test GROUP BY test")
+  }
+
+  test("Multiple") {
+    val victim = SELECT("test", "count(name)") FROM "test" GROUP_BY ("test", "name")
+    victim.queryString should equal ("SELECT test, count(name) FROM test GROUP BY test, name")
+  }
 }

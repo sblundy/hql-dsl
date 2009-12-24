@@ -26,13 +26,10 @@
  */
 package org.hqldsl
 
-import org.hibernate.Session
 import org.scalatest.FunSuite
 import org.scalatest.matchers.ShouldMatchers
 
-class WhereClauseTest extends FunSuite with HqlQuerying with SessionSource with ShouldMatchers {
-  def session() = null.asInstanceOf[Session]
-
+class WhereClauseTest extends HqlQueriesTestBase with FunSuite with ShouldMatchers {
   test("Where") {
     val victim = SELECT("test") FROM ("test") WHERE ("a" EQ Literal(1))
     victim.queryString should equal ("SELECT test FROM test WHERE a = 1")

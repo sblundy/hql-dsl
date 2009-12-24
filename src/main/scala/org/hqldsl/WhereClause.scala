@@ -26,7 +26,8 @@
  */
 package org.hqldsl
 
-class WhereClause(from:FromClause, last:TreeNode) extends ExecutableClause {
+class WhereClause(from:ExecutableClause, last:TreeNode)
+        extends ExecutableClause with GroupByProvider with OrderByProvider {
   def AND(c:Criterion):WhereClause = new WhereClause(from, LinkedNode(last, Junction.and, c))
   def OR(c:Criterion):WhereClause = new WhereClause(from, LinkedNode(last, Junction.or, c))
   override def queryString():String = {
@@ -106,6 +107,11 @@ class WhereClause(from:FromClause, last:TreeNode) extends ExecutableClause {
     }
     walk(this.last)
   }
+}
+
+trait WhereProvider {
+  self:ExecutableClause =>
+  def WHERE(c:Criterion):WhereClause = new WhereClause(this, FirstNode(c))
 }
 
 trait WhereImplicits {

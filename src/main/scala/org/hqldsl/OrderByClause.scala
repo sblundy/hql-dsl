@@ -26,10 +26,32 @@
  */
 package org.hqldsl
 
-abstract class Clause extends NotNull {
-  def queryString():String
+class OrderByClause(previous:ExecutableClause, orders:Seq[OrderClause]) extends ExecutableClause {
+  def queryString():String = previous.queryString + " ORDER BY " + orders.map(mkString(_)).mkString(", ")
+  protected[hqldsl] def variables:Seq[Variable[_]] = previous.variables
+
+  private def mkString(oc:OrderClause):String = oc match {
+    case DefaultOrder(column) => column
+    case AscOrder(column) => column + " ASC"
+    case DscOrder(column) => column + " DSC"
+  }
 }
 
-abstract class ExecutableClause extends Clause {
-  protected[hqldsl] def variables:Seq[Variable[_]]
+trait OrderByProvider {
+  self:ExecutableClause =>
+  def ORDER_BY(orders:OrderClause*):OrderByClause = new OrderByClause(this, orders)
 }
+
+trait OrderByImplicits {
+  implicit def string2DefaultOrder(column:String) = DefaultOrder(column)
+}
+
+sealed trait OrderClause
+
+case class DefaultOrder(column:String) extends OrderClause {
+  def ASC = AscOrder(column)
+  def DSC = DscOrder(column)
+}
+
+case class AscOrder(column:String) extends OrderClause
+case class DscOrder(column:String) extends OrderClause

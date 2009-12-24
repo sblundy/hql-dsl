@@ -26,10 +26,8 @@
  */
 package org.hqldsl
 
-abstract class Clause extends NotNull {
-  def queryString():String
-}
+import org.hibernate.Session
 
-abstract class ExecutableClause extends Clause {
-  protected[hqldsl] def variables:Seq[Variable[_]]
+abstract class HqlQueriesTestBase extends HqlQuerying with SessionSource {
+  def session() = null.asInstanceOf[Session]
 }
