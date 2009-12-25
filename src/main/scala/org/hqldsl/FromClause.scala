@@ -27,8 +27,9 @@
 package org.hqldsl
 
 class FromClause(val select:Option[SelectClause], val tables:Seq[Table])
-        extends ExecutableClause with WhereProvider with GroupByProvider with OrderByProvider {
-  override def queryString():String = {
+        extends ExecutableClause with WhereProvider with GroupByProvider with HavingProvider
+                with OrderByProvider {
+  def queryString():String = {
     def printTable(t:Table):String = {
       def printAlias(a:Option[String]):String = a match { case None => "" ; case Some(alias) => " AS " + alias }
       

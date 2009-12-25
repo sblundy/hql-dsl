@@ -26,43 +26,21 @@
  */
 package org.hqldsl
 
-import org.hibernate.Session
-import collection.jcl.Buffer
+import org.scalatest.matchers.ShouldMatchers
+import org.scalatest.FunSuite
 
-/**
- * Interface to provide HQL queries. Typically a user class will make a query as a part of an
- * internal method. For example, a method that finds a class by name and birthday might look like
- * this:
- *
- * <code>
- * def findByNameAndBirthDateRange(name:String, start:Date, end:Date):Seq[Person] = {
- *   return SELECT "p" FROM "Persons" AS "p" WHERE
- *     "p.name" EQ Var(name) AND "p.birthday" BETWEEN Var(start) AND Var(end)
- * }
- * </code>
- *
- * The {@link Var} objects will correctly handle the variables, passing them to the query via
- * <code>setParameter()</code>.
- */
-trait HqlQuerying extends FromImplicits with ExpressionsClauseImplicits with OrderByImplicits {
-  this: SessionSource =>
-  protected def SELECT(projections:String*):SelectClause = new SelectClause(projections:_*)
-  protected def FROM(tables:Table*):FromClause = new FromClause(None, tables)
-
-  implicit protected def exec[T](executable:ExecutableClause):Buffer[T] = {
-    val query = session.createQuery(executable.queryString)
-
-    executable.variables.foreach(_ match {
-      case Variable(name, value) => query.setParameter(name, value)
-    })
-
-    return collection.jcl.Conversions.convertList(query.list.asInstanceOf[java.util.List[T]])
+class HavingClauseTest extends HqlQueriesTestBase with FunSuite with ShouldMatchers {
+  test("Simple") {
+    val victim = SELECT("id", "count(*)") FROM "test" GROUP_BY ("id", "test") HAVING ("count(*)" GT Var(1))
+    victim.queryString should fullyMatch regex
+            ("SELECT id, count\\(\\*\\) FROM test GROUP BY id, test HAVING count\\(\\*\\) > :var\\d+")
   }
-}
 
-/**
- * Used to connect {@link HqlQuerying} to the user class. 
- */
-trait SessionSource {
-  protected def session():Session
+  test("w/ WHERE") {
+    val victim = SELECT("id", "count(*)") FROM "test" WHERE ("name" NE Var("b")) GROUP_BY
+            ("id", "test") HAVING ("count(*)" GT Var(1))
+    victim.queryString should fullyMatch regex
+            ("SELECT id, count\\(\\*\\) FROM test WHERE name <> :var\\d+ GROUP BY id, test HAVING count\\(\\*\\) > :var\\d+")
+    victim.variables.size should be (2)
+  }
 }

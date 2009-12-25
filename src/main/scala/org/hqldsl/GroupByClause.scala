@@ -27,7 +27,7 @@
 package org.hqldsl
 
 class GroupByClause(previous:ExecutableClause, columns:Seq[String])
-        extends ExecutableClause with OrderByProvider {
+        extends ExecutableClause with HavingProvider with OrderByProvider {
   def queryString():String = previous.queryString + " GROUP BY " + columns.mkString(", ")
   protected[hqldsl] def variables:Seq[Variable[_]] = previous.variables
 }

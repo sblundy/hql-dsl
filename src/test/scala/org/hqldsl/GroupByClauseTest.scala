@@ -39,4 +39,10 @@ class GroupByClauseTest extends HqlQueriesTestBase with FunSuite with ShouldMatc
     val victim = SELECT("test", "count(name)") FROM "test" GROUP_BY ("test", "name")
     victim.queryString should equal ("SELECT test, count(name) FROM test GROUP BY test, name")
   }
+
+  test("w/ WHERE") {
+    val victim = SELECT("test", "count(name)") FROM "test" WHERE ("x" EQ Var(4)) GROUP_BY ("test", "name")
+    victim.queryString should fullyMatch regex ("SELECT test, count\\(name\\) FROM test WHERE x = :var\\d+ GROUP BY test, name")
+    victim.variables.size should be (1)
+  }
 }

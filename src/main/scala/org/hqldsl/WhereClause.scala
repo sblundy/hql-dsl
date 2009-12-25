@@ -27,29 +27,37 @@
 package org.hqldsl
 
 class WhereClause(from:ExecutableClause, last:TreeNode)
-        extends ExecutableClause with GroupByProvider with OrderByProvider {
+        extends ExpressionsClause(last) with GroupByProvider with HavingProvider with OrderByProvider {
+  type T = WhereClause
+
   def AND(c:Criterion):WhereClause = new WhereClause(from, LinkedNode(last, Junction.and, c))
   def OR(c:Criterion):WhereClause = new WhereClause(from, LinkedNode(last, Junction.or, c))
-  override def queryString():String = {
-    def walk(node:TreeNode):String = {
-      def printCriterion(c:Criterion):String = {
-        c match {
-          case BinaryCriterion(left, op, right) => mkString(left) + " " + mkString(op) + " " + mkString(right)
-          case UnitaryCriterion(left, op) => mkString(left) + " " + mkString(op)
-          case BetweenCriteron(left, mid, right) =>
-            mkString(left) + " BETWEEN " + mkString(mid) + " AND " +mkString(right)
-          case NodeCriterion(node) => "(" + walk(node) + ")"
-          case SubQueryCriterion(left, op, subquery) => mkString(left) + " " + mkString(op) + " " + mkString(subquery)
-          case NotCriterion(c) => "NOT " + printCriterion(c)
-        }
-      }
+  def queryString():String = from.queryString + " WHERE " + walk(last)
+}
 
-      node match {
-        case FirstNode(c) => printCriterion(c)
-        case LinkedNode(previous, j, c) => walk(previous) + " " + mkString(j) + " " + printCriterion(c)
+abstract class ExpressionsClause(last:TreeNode) extends ExecutableClause {
+  type T <: ExpressionsClause
+  
+  def AND(c:Criterion):T
+  def OR(c:Criterion):T
+
+  protected def walk(node:TreeNode):String = {
+    def printCriterion(c:Criterion):String = {
+      c match {
+        case BinaryCriterion(left, op, right) => mkString(left) + " " + mkString(op) + " " + mkString(right)
+        case UnitaryCriterion(left, op) => mkString(left) + " " + mkString(op)
+        case BetweenCriteron(left, mid, right) =>
+          mkString(left) + " BETWEEN " + mkString(mid) + " AND " +mkString(right)
+        case NodeCriterion(node) => "(" + walk(node) + ")"
+        case SubQueryCriterion(left, op, subquery) => mkString(left) + " " + mkString(op) + " " + mkString(subquery)
+        case NotCriterion(c) => "NOT " + printCriterion(c)
       }
     }
-    from.queryString + " WHERE " + walk(last)
+
+    node match {
+      case FirstNode(c) => printCriterion(c)
+      case LinkedNode(previous, j, c) => walk(previous) + " " + mkString(j) + " " + printCriterion(c)
+    }
   }
 
   private def mkString(v:CriterionAtom):String = v match {
@@ -114,7 +122,7 @@ trait WhereProvider {
   def WHERE(c:Criterion):WhereClause = new WhereClause(this, FirstNode(c))
 }
 
-trait WhereImplicits {
+trait ExpressionsClauseImplicits {
   implicit def atom2Left(x:CriterionAtom):Left = new Left(x)
   implicit def string2Left(x:String):Left = new Left(Prop(x))
   implicit def criterionToTree(node:TreeNode):Criterion = NodeCriterion(node)
