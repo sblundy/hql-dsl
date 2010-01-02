@@ -43,14 +43,15 @@ abstract class ExpressionsClause(last:TreeNode) extends ExecutableClause {
 
   protected def walk(node:TreeNode):String = {
     def printCriterion(c:Criterion):String = {
+      import ExpressionClause._
       c match {
-        case BinaryCriterion(left, op, right) => mkString(left) + " " + mkString(op) + " " + mkString(right)
-        case UnitaryCriterion(left, op) => mkString(left) + " " + mkString(op)
-        case BetweenCriteron(left, mid, right) =>
-          mkString(left) + " BETWEEN " + mkString(mid) + " AND " +mkString(right)
-        case NodeCriterion(node) => "(" + walk(node) + ")"
-        case SubQueryCriterion(left, op, subquery) => mkString(left) + " " + mkString(op) + " " + mkString(subquery)
-        case NotCriterion(c) => "NOT " + printCriterion(c)
+        case BinaryCriterion(left, op, right) => BinaryCriterionFormat.format(mkString(left), mkString(op), mkString(right))
+        case UnitaryCriterion(left, op) => UnitaryCriterionFormat.format(mkString(left), mkString(op))
+        case BetweenCriteron(left, mid, right) => BetweenCriterionFormat.format(mkString(left), mkString(mid), mkString(right))
+        case NodeCriterion(node) => NodeCriterionFormat.format(walk(node))
+        case SubQueryCriterion(left, op, subquery) => SubQueryCriterionFormat.format(mkString(left), mkString(op), mkString(subquery))
+        case NotCriterion(c) => NotCriterionFormat.format(printCriterion(c))
+        case EmptyCriterion(op, query) => EmptyCriterionFormat.format(mkString(op), mkString(query))
       }
     }
 
@@ -72,31 +73,27 @@ abstract class ExpressionsClause(last:TreeNode) extends ExecutableClause {
     case SubQuery(subquery) => "(" + subquery.queryString + ")"
   }
 
-  private def mkString(v:CollectionOp):String = v match {
-    case CollectionOp.in => "IN"
-    case CollectionOp.notIn => "NOT IN"
-  }
-
   private def mkString(v:Junction):String = v match {
     case Junction.and => "AND"
     case Junction.or => "OR"
   }
 
   private def mkString(v:Op):String = v match {
-    case Op.eq => "="
-    case Op.ne => "<>"
-    case Op.gt => ">"
-    case Op.ge => ">="
-    case Op.le => "<="
-    case Op.lt => "<"
-    case Op.like => "LIKE"
-    case Op.memberOf => "MEMBER OF"
-    case Op.notMemberOf => "NOT MEMBER OF"
-  }
-
-  private def mkString(v:UnitaryOp):String = v match {
+    case BinaryOp.eq => "="
+    case BinaryOp.ne => "<>"
+    case BinaryOp.gt => ">"
+    case BinaryOp.ge => ">="
+    case BinaryOp.le => "<="
+    case BinaryOp.lt => "<"
+    case BinaryOp.like => "LIKE"
+    case BinaryOp.memberOf => "MEMBER OF"
+    case BinaryOp.notMemberOf => "NOT MEMBER OF"
     case UnitaryOp.isNotNull => "IS NOT NULL"
     case UnitaryOp.isNull => "IS NULL"
+    case CollectionOp.in => "IN"
+    case CollectionOp.notIn => "NOT IN"
+    case EmptyOp.isNotEmpty => "IS NOT EMPTY"
+    case EmptyOp.isEmpty => "IS EMPTY"
   }
 
   protected[hqldsl] def variables:Seq[Variable[_]] = {
@@ -104,6 +101,8 @@ abstract class ExpressionsClause(last:TreeNode) extends ExecutableClause {
       case BinaryCriterion(left:Variable[_], _, right:Variable[_]) => List(left, right)
       case BinaryCriterion(_, _, right:Variable[_]) => List(right)
       case BinaryCriterion(left:Variable[_], _, _) => List(left)
+      case SubQueryCriterion(_, _, SubQuery(query)) => query.variables
+      case EmptyCriterion(_, SubQuery(query)) => query.variables
       case _ => Nil
     })
   }
@@ -115,6 +114,18 @@ abstract class ExpressionsClause(last:TreeNode) extends ExecutableClause {
     }
     walk(this.last)
   }
+}
+
+object ExpressionClause {
+  import runtime.RichString
+
+  protected[hqldsl] val BinaryCriterionFormat = new RichString("%s %s %s")
+  protected[hqldsl] val UnitaryCriterionFormat = new RichString("%s %s")
+  protected[hqldsl] val BetweenCriterionFormat = new RichString("%s BETWEEN %s AND %s")
+  protected[hqldsl] val NodeCriterionFormat = new RichString("(%s)")
+  protected[hqldsl] val SubQueryCriterionFormat = new RichString("%s %s %s")
+  protected[hqldsl] val NotCriterionFormat = new RichString("NOT %s")
+  protected[hqldsl] val EmptyCriterionFormat = new RichString("%s %s")
 }
 
 trait WhereProvider {
@@ -133,24 +144,24 @@ trait ExpressionsClauseImplicits {
 }
 
 class Left(val left:CriterionAtom) {
-  def EQ(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.eq, right)
-  def EQ(right:String):Criterion = new BinaryCriterion(left, Op.eq, Prop(right))
-  def NE(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.ne, right)
-  def NE(right:String):Criterion = new BinaryCriterion(left, Op.ne, Prop(right))
-  def GT(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.gt, right)
-  def GT(right:String):Criterion = new BinaryCriterion(left, Op.gt, Prop(right))
-  def GE(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.ge, right)
-  def GE(right:String):Criterion = new BinaryCriterion(left, Op.ge, Prop(right))
-  def LE(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.le, right)
-  def LE(right:String):Criterion = new BinaryCriterion(left, Op.le, Prop(right))
-  def LT(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.lt, right)
-  def LT(right:String):Criterion = new BinaryCriterion(left, Op.lt, Prop(right))
-  def LIKE(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.like, right)
-  def LIKE(right:String):Criterion = new BinaryCriterion(left, Op.like, Prop(right))
-  def MEMBER_OF(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.memberOf, right)
-  def MEMBER_OF(right:String):Criterion = new BinaryCriterion(left, Op.memberOf, Prop(right))
-  def NOT_MEMBER_OF(right:CriterionAtom):Criterion = new BinaryCriterion(left, Op.notMemberOf, right)
-  def NOT_MEMBER_OF(right:String):Criterion = new BinaryCriterion(left, Op.notMemberOf, Prop(right))
+  def EQ(right:CriterionAtom):Criterion = new BinaryCriterion(left, BinaryOp.eq, right)
+  def EQ(right:String):Criterion = new BinaryCriterion(left, BinaryOp.eq, Prop(right))
+  def NE(right:CriterionAtom):Criterion = new BinaryCriterion(left, BinaryOp.ne, right)
+  def NE(right:String):Criterion = new BinaryCriterion(left, BinaryOp.ne, Prop(right))
+  def GT(right:CriterionAtom):Criterion = new BinaryCriterion(left, BinaryOp.gt, right)
+  def GT(right:String):Criterion = new BinaryCriterion(left, BinaryOp.gt, Prop(right))
+  def GE(right:CriterionAtom):Criterion = new BinaryCriterion(left, BinaryOp.ge, right)
+  def GE(right:String):Criterion = new BinaryCriterion(left, BinaryOp.ge, Prop(right))
+  def LE(right:CriterionAtom):Criterion = new BinaryCriterion(left, BinaryOp.le, right)
+  def LE(right:String):Criterion = new BinaryCriterion(left, BinaryOp.le, Prop(right))
+  def LT(right:CriterionAtom):Criterion = new BinaryCriterion(left, BinaryOp.lt, right)
+  def LT(right:String):Criterion = new BinaryCriterion(left, BinaryOp.lt, Prop(right))
+  def LIKE(right:CriterionAtom):Criterion = new BinaryCriterion(left, BinaryOp.like, right)
+  def LIKE(right:String):Criterion = new BinaryCriterion(left, BinaryOp.like, Prop(right))
+  def MEMBER_OF(right:CriterionAtom):Criterion = new BinaryCriterion(left, BinaryOp.memberOf, right)
+  def MEMBER_OF(right:String):Criterion = new BinaryCriterion(left, BinaryOp.memberOf, Prop(right))
+  def NOT_MEMBER_OF(right:CriterionAtom):Criterion = new BinaryCriterion(left, BinaryOp.notMemberOf, right)
+  def NOT_MEMBER_OF(right:String):Criterion = new BinaryCriterion(left, BinaryOp.notMemberOf, Prop(right))
   def IS_NULL:Criterion = new UnitaryCriterion(left, UnitaryOp.isNull)
   def IS_NOT_NULL:Criterion = new UnitaryCriterion(left, UnitaryOp.isNotNull)
   def BETWEEN(one:CriterionAtom):BetweenTemp = new BetweenTemp(left, one)
@@ -161,6 +172,7 @@ class Left(val left:CriterionAtom) {
 class BetweenTemp(left:CriterionAtom, mid:CriterionAtom) {
   def AND(right:CriterionAtom):Criterion = new BetweenCriteron(left, mid, right)
 }
+
 sealed trait CriterionAtom
 
 case class Variable[T](name:String, value:T) extends CriterionAtom
@@ -183,12 +195,13 @@ sealed trait Criterion extends NotNull {
   def OR(c:Criterion):TreeNode = LinkedNode(FirstNode(this), Junction.or, c)
 }
 
-case class BinaryCriterion(left:CriterionAtom, op:Op, right:CriterionAtom) extends Criterion
+case class BinaryCriterion(left:CriterionAtom, op:BinaryOp, right:CriterionAtom) extends Criterion
 case class UnitaryCriterion(atom:CriterionAtom, op:UnitaryOp) extends Criterion
 case class BetweenCriteron(left:CriterionAtom, mid:CriterionAtom, right:CriterionAtom) extends Criterion
 case class NodeCriterion(tree:TreeNode) extends Criterion
 case class SubQueryCriterion(left:CriterionAtom, op:CollectionOp, subquery:SubQuery) extends Criterion
 case class NotCriterion(c:Criterion) extends Criterion
+case class EmptyCriterion(op:EmptyOp, query:SubQuery) extends Criterion
 
 abstract sealed class TreeNode extends NotNull
 
@@ -197,26 +210,35 @@ case class FirstNode(criterion:Criterion) extends TreeNode
 
 sealed trait Op extends NotNull
 
-object Op {
-  case object eq extends Op
-  case object ne extends Op
-  case object gt extends Op
-  case object ge extends Op
-  case object le extends Op
-  case object lt extends Op
-  case object like extends Op
-  case object memberOf extends Op
-  case object notMemberOf extends Op
+sealed trait BinaryOp extends Op
+
+object BinaryOp {
+  case object eq extends BinaryOp
+  case object ne extends BinaryOp
+  case object gt extends BinaryOp
+  case object ge extends BinaryOp
+  case object le extends BinaryOp
+  case object lt extends BinaryOp
+  case object like extends BinaryOp
+  case object memberOf extends BinaryOp
+  case object notMemberOf extends BinaryOp
 }
 
-sealed trait UnitaryOp extends NotNull
+sealed trait UnitaryOp extends Op
 
 object UnitaryOp {
   case object isNull extends UnitaryOp
   case object isNotNull extends UnitaryOp
 }
 
-sealed trait CollectionOp extends NotNull
+sealed trait EmptyOp extends Op
+
+object EmptyOp {
+  case object isEmpty extends EmptyOp
+  case object isNotEmpty extends EmptyOp
+}
+
+sealed trait CollectionOp extends Op
 
 object CollectionOp {
   case object in extends CollectionOp
@@ -228,4 +250,12 @@ sealed trait Junction extends NotNull
 object Junction {
   case object and extends Junction
   case object or extends Junction
+}
+
+object IS_EMPTY {
+  def apply(query:ExecutableClause) = EmptyCriterion(EmptyOp.isEmpty, SubQuery(query))
+}
+
+object IS_NOT_EMPTY {
+  def apply(query:ExecutableClause) = EmptyCriterion(EmptyOp.isNotEmpty, SubQuery(query))
 }

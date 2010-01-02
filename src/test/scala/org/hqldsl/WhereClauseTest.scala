@@ -150,4 +150,11 @@ class WhereClauseTest extends HqlQueriesTestBase with FunSuite with ShouldMatche
     val victim = SELECT("test") FROM ("test") WHERE ("a" EQ Literal(1)) AND (NOT ("name" EQ Literal("test")) OR ("c" NE "d"))
     victim.queryString should equal ("SELECT test FROM test WHERE a = 1 AND (NOT name = 'test' OR c <> d)")
   }
+
+  test("Is Empty subquery") {
+    val victim = SELECT("test") FROM ("test" AS "o") WHERE IS_EMPTY(FROM("test" AS "i") WHERE ("o.value" GT "i.value") AND ("i.name" EQ Var(5)))
+    victim.queryString should fullyMatch regex("SELECT test FROM test AS o WHERE IS EMPTY \\(FROM test AS i WHERE o.value > i.value AND i.name = :var\\d+\\)")
+    victim.variables.size should be (1)
+    victim.variables.first.value should be (5)
+  }
 }
