@@ -132,8 +132,17 @@ class WhereClauseTest extends HqlQueriesTestBase with FunSuite with ShouldMatche
 
   test("Subquery") {
     val victim = SELECT("test") FROM ("test") WHERE
-            ("a" IN (SELECT("st") FROM ("subtest" AS "st") WHERE ("b" EQ Literal(4))))
-    victim.queryString should equal ("SELECT test FROM test WHERE a IN (SELECT st FROM subtest AS st WHERE b = 4)")
+            ("a" IN (SELECT("st") FROM ("subtest" AS "st") WHERE ("b" EQ Var(4))))
+    victim.queryString should fullyMatch regex("SELECT test FROM test WHERE a IN \\(SELECT st FROM subtest AS st WHERE b = :var\\d+\\)")
+    victim.variables.size should be (1)
+    victim.variables.first.value should be (4)
+  }
+
+  test("IN Collection") {
+    val victim = SELECT("test") FROM ("test") WHERE ("a" IN ("name", Literal(3), Var(4)))
+    victim.queryString should fullyMatch regex("SELECT test FROM test WHERE a IN \\(name, 3, :var\\d+\\)")
+    victim.variables.size should be (1)
+    victim.variables.first.value should be (4)
   }
 
   test("NOT") {

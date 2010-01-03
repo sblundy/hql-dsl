@@ -65,12 +65,16 @@ abstract class ExpressionsClause(last:TreeNode) extends ExecutableClause {
     case Variable(name, _) => ":" + name
     case Property(None, name) => name
     case Property(Some(obj), name) => obj + "." + name
-    case Literal(s:String) => "'" + s + "'"
-    case Literal(primative:AnyVal) => primative.toString
-    case Literal(d:java.util.Date) => throw new IllegalArgumentException("dates not supported for literals")
-    case Literal(a:AnyRef) =>
+    case LiteralValue(s:String) => "'" + s + "'"
+    case LiteralValue(primative:AnyVal) => primative.toString
+    case LiteralValue(d:java.util.Date) => throw new IllegalArgumentException("dates not supported for literals")
+    case LiteralValue(a:AnyRef) =>
       throw new IllegalArgumentException("type not supported for literals:" + a.getClass.getName)
+  }
+
+  private def mkString(v:ItemsCollection):String = v match {
     case SubQuery(subquery) => "(" + subquery.queryString + ")"
+    case AtomsCollection(atoms) => "(" + atoms.map(mkString(_)).mkString(", ") +")"
   }
 
   private def mkString(v:Junction):String = v match {
@@ -97,12 +101,19 @@ abstract class ExpressionsClause(last:TreeNode) extends ExecutableClause {
   }
 
   protected[hqldsl] def variables:Seq[Variable[_]] = {
+    def filter(atoms:Seq[CriterionAtom]):Seq[Variable[_]] = atoms.flatMap(_ match {
+        case v:Variable[_] => Some(v)
+        case _ => None
+      })
+    
     criteria.flatMap(_ match {
       case BinaryCriterion(left:Variable[_], _, right:Variable[_]) => List(left, right)
       case BinaryCriterion(_, _, right:Variable[_]) => List(right)
       case BinaryCriterion(left:Variable[_], _, _) => List(left)
       case SubQueryCriterion(_, _, SubQuery(query)) => query.variables
+      case SubQueryCriterion(_, _, AtomsCollection(atoms)) => filter(atoms)
       case EmptyCriterion(_, SubQuery(query)) => query.variables
+      case EmptyCriterion(_, AtomsCollection(atoms)) => filter(atoms)
       case _ => Nil
     })
   }
@@ -137,6 +148,7 @@ trait ExpressionsClauseImplicits {
   implicit def atom2Left(x:CriterionAtom):Left = new Left(x)
   implicit def string2Left(x:String):Left = new Left(Prop(x))
   implicit def criterionToTree(node:TreeNode):Criterion = NodeCriterion(node)
+  implicit def string2Atom(x:String):CriterionAtom = Prop(x)
 
   object NOT {
     def apply(c:Criterion):Criterion = NotCriterion(c)
@@ -166,7 +178,9 @@ class Left(val left:CriterionAtom) {
   def IS_NOT_NULL:Criterion = new UnitaryCriterion(left, UnitaryOp.isNotNull)
   def BETWEEN(one:CriterionAtom):BetweenTemp = new BetweenTemp(left, one)
   def IN(right:ExecutableClause):Criterion = new SubQueryCriterion(left, CollectionOp.in, new SubQuery(right))
+  def IN(items:CriterionAtom*):Criterion = new SubQueryCriterion(left, CollectionOp.in, new AtomsCollection(items))
   def NOT_IN(right:ExecutableClause):Criterion = new SubQueryCriterion(left, CollectionOp.notIn, new SubQuery(right))
+  def NOT_IN(items:CriterionAtom*):Criterion = new SubQueryCriterion(left, CollectionOp.notIn, new AtomsCollection(items))
 }
 
 class BetweenTemp(left:CriterionAtom, mid:CriterionAtom) {
@@ -176,13 +190,22 @@ class BetweenTemp(left:CriterionAtom, mid:CriterionAtom) {
 sealed trait CriterionAtom
 
 case class Variable[T](name:String, value:T) extends CriterionAtom
-case class Literal[T](value:T) extends CriterionAtom
+case class LiteralValue[T](value:T) extends CriterionAtom
 case class Property(obj:Option[String], name:String) extends CriterionAtom
-case class SubQuery(subquery:ExecutableClause) extends CriterionAtom
+
+sealed trait ItemsCollection
+
+case class SubQuery(subquery:ExecutableClause) extends ItemsCollection
+case class AtomsCollection(atoms:Seq[CriterionAtom]) extends ItemsCollection
 
 object Var {
   private val r = new java.util.Random()
   def apply[T](value:T):Variable[T] = Variable[T]("var" + r.nextInt(Integer.MAX_VALUE), value)
+}
+
+object Literal {
+  def apply(value:String) = LiteralValue(value)
+  def apply(value:AnyVal) = LiteralValue(value)
 }
 
 object Prop {
@@ -199,9 +222,9 @@ case class BinaryCriterion(left:CriterionAtom, op:BinaryOp, right:CriterionAtom)
 case class UnitaryCriterion(atom:CriterionAtom, op:UnitaryOp) extends Criterion
 case class BetweenCriteron(left:CriterionAtom, mid:CriterionAtom, right:CriterionAtom) extends Criterion
 case class NodeCriterion(tree:TreeNode) extends Criterion
-case class SubQueryCriterion(left:CriterionAtom, op:CollectionOp, subquery:SubQuery) extends Criterion
+case class SubQueryCriterion(left:CriterionAtom, op:CollectionOp, subquery:ItemsCollection) extends Criterion
 case class NotCriterion(c:Criterion) extends Criterion
-case class EmptyCriterion(op:EmptyOp, query:SubQuery) extends Criterion
+case class EmptyCriterion(op:EmptyOp, query:ItemsCollection) extends Criterion
 
 abstract sealed class TreeNode extends NotNull
 
@@ -254,8 +277,10 @@ object Junction {
 
 object IS_EMPTY {
   def apply(query:ExecutableClause) = EmptyCriterion(EmptyOp.isEmpty, SubQuery(query))
+  def apply(items:CriterionAtom*) = EmptyCriterion(EmptyOp.isEmpty, AtomsCollection(items))
 }
 
 object IS_NOT_EMPTY {
   def apply(query:ExecutableClause) = EmptyCriterion(EmptyOp.isNotEmpty, SubQuery(query))
+  def apply(items:CriterionAtom*) = EmptyCriterion(EmptyOp.isNotEmpty, AtomsCollection(items))
 }
